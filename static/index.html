@@ -7,48 +7,89 @@
   <link rel="stylesheet" href="/app.css">
 </head>
 <body>
-  <header>
-    <div class="brand">Review<span>Lens</span></div>
+  <div class="utility-bar">
+    <span>AI-powered review intelligence</span>
+    <span>Private by design · Secure analysis</span>
+  </div>
+  <header class="main-header">
+    <nav class="category-nav" aria-label="Primary">
+      <a href="#insights">INSIGHTS</a>
+      <a href="#reviews">REVIEWS</a>
+      <a href="#processing">PROCESSING</a>
+    </nav>
+    <a class="brand" href="#" aria-label="ReviewLens home">REVIEW<span>LENS</span></a>
     <div class="actions">
       <input id="csvFile" type="file" accept=".csv,text/csv" hidden>
-      <button id="uploadButton" class="secondary">Upload CSV</button>
-      <button id="sampleButton" class="primary">Analyze sample</button>
+      <button id="uploadButton" class="upload-button">UPLOAD CSV <span>↗</span></button>
+      <button id="sampleButton" class="analyze-button">ANALYZE SAMPLE</button>
     </div>
   </header>
   <main>
     <section id="emptyState" class="empty">
-      <div class="empty-icon">RL</div>
-      <h1>Turn reviews into decisions</h1>
-      <p>Upload a CSV or analyze the included sample dataset.</p>
+      <div class="empty-copy">
+        <p class="eyebrow">Customer intelligence / 2026</p>
+        <h1>Reviews,<br><em>made useful.</em></h1>
+        <p class="lede">Transform every customer comment into clear praise, urgent complaints, and replies worth sending.</p>
+        <button class="hero-button" id="emptySampleButton">EXPLORE THE SAMPLE <span>→</span></button>
+      </div>
+      <div class="empty-visual" aria-hidden="true">
+        <div class="orbit orbit-one"></div>
+        <div class="orbit orbit-two"></div>
+        <div class="review-slab">
+          <span class="slab-index">01</span>
+          <span class="slab-copy">Signal<br>over noise.</span>
+          <span class="slab-mark">RL</span>
+        </div>
+      </div>
+      <div class="empty-foot">
+        <span>01 / DATA</span>
+        <span>02 / INSIGHT</span>
+        <span>03 / ACTION</span>
+      </div>
     </section>
 
     <div id="dashboard" hidden>
-      <section class="summary-grid">
-        <article class="metric"><span>Total analysed</span><strong id="totalMetric">0</strong><small id="failedMetric"></small></article>
-        <article class="metric"><span>Positive</span><strong id="positiveMetric">0%</strong><div class="bar positive"></div></article>
-        <article class="metric"><span>Neutral</span><strong id="neutralMetric">0%</strong><div class="bar neutral"></div></article>
-        <article class="metric"><span>Negative</span><strong id="negativeMetric">0%</strong><div class="bar negative"></div></article>
-        <article class="metric accent"><span>Needs reply</span><strong id="replyMetric">0</strong><small>customer issues</small></article>
+      <section class="dashboard-hero" id="insights">
+        <div>
+          <p class="eyebrow">Analysis report / Customer voice</p>
+          <h1>Customer<br><em>signals.</em></h1>
+        </div>
+        <div class="hero-note">
+          <span class="live-dot"></span>
+          <p>Live analysis</p>
+          <small id="failedMetric">all successful</small>
+        </div>
+      </section>
+
+      <section class="summary-grid" aria-label="Summary metrics">
+        <article class="metric metric-featured"><span>01 / Total analysed</span><strong id="totalMetric">0</strong><small>verified reviews</small></article>
+        <article class="metric"><span>02 / Positive</span><strong id="positiveMetric">0%</strong><div class="bar positive"></div></article>
+        <article class="metric"><span>03 / Neutral</span><strong id="neutralMetric">0%</strong><div class="bar neutral"></div></article>
+        <article class="metric"><span>04 / Negative</span><strong id="negativeMetric">0%</strong><div class="bar negative"></div></article>
+        <article class="metric metric-reply"><span>05 / Needs reply</span><strong id="replyMetric">0</strong><small>customer issues</small></article>
       </section>
 
       <section class="insights-grid">
-        <article class="panel">
-          <h2>Top complaints</h2>
+        <article class="panel" id="processing">
+          <div class="panel-heading"><p>01 / Friction</p><span>COMPLAINTS</span></div>
           <div id="complaints"></div>
         </article>
         <article class="panel">
-          <h2>Top praises</h2>
+          <div class="panel-heading"><p>02 / Affinity</p><span>PRAISES</span></div>
           <div id="praises"></div>
         </article>
-        <article class="panel compact">
-          <h2>Processing</h2>
+        <article class="panel compact" id="processingStats">
+          <div class="panel-heading"><p>03 / System</p><span>PROCESSING</span></div>
           <dl><dt>AI calls</dt><dd id="aiCalls">0</dd><dt>Cache hits</dt><dd id="cacheHits">0</dd><dt>Time</dt><dd id="processTime">0 ms</dd><dt>Rating agreement</dt><dd id="agreement">—</dd></dl>
         </article>
       </section>
 
-      <section class="panel table-panel">
+      <section class="panel table-panel" id="reviews">
         <div class="table-head">
-          <h2>Review details</h2>
+          <div>
+            <p class="eyebrow">The evidence</p>
+            <h2>Review details</h2>
+          </div>
           <div class="filters">
             <select id="productFilter"><option value="">All products</option></select>
             <select id="sentimentFilter"><option value="">All sentiment</option><option value="positive">Positive</option><option value="neutral">Neutral</option><option value="negative">Negative</option></select>

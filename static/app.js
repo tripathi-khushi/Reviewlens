@@ -127,6 +127,7 @@ $("sampleButton").addEventListener("click", async () => {
   const data = await response.json();
   analyze(data.csv);
 });
+$("emptySampleButton").addEventListener("click", () => $("sampleButton").click());
 ["productFilter", "sentimentFilter", "topicFilter"].forEach(id =>
   $(id).addEventListener("change", renderRows)
 );
