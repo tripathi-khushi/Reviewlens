@@ -13,11 +13,12 @@
   </div>
   <header class="main-header">
     <nav class="category-nav" aria-label="Primary">
-      <a href="#insights">INSIGHTS</a>
-      <a href="#reviews">REVIEWS</a>
-      <a href="#processing">PROCESSING</a>
+      <button type="button" class="nav-link" id="homeNavButton">HOME</button>
+      <button type="button" class="nav-link section-nav" data-target="insights">INSIGHTS</button>
+      <button type="button" class="nav-link section-nav" data-target="reviews">REVIEWS</button>
+      <button type="button" class="nav-link section-nav" data-target="processing">PROCESSING</button>
     </nav>
-    <a class="brand" href="#" aria-label="ReviewLens home">REVIEW<span>LENS</span></a>
+    <button type="button" class="brand brand-button" id="brandHomeButton" aria-label="ReviewLens home">REVIEW<span>LENS</span></button>
     <div class="actions">
       <input id="csvFile" type="file" accept=".csv,text/csv" hidden>
       <button id="uploadButton" class="upload-button">UPLOAD CSV <span>↗</span></button>
@@ -58,6 +59,7 @@
           <span class="live-dot"></span>
           <p>Live analysis</p>
           <small id="failedMetric">all successful</small>
+          <button type="button" class="back-home-button" id="backHomeButton">← Back to hero</button>
         </div>
       </section>
 
@@ -80,7 +82,7 @@
         </article>
         <article class="panel compact" id="processingStats">
           <div class="panel-heading"><p>03 / System</p><span>PROCESSING</span></div>
-          <dl><dt>AI calls</dt><dd id="aiCalls">0</dd><dt>Cache hits</dt><dd id="cacheHits">0</dd><dt>Time</dt><dd id="processTime">0 ms</dd><dt>Rating agreement</dt><dd id="agreement">—</dd></dl>
+          <dl><dt>AI calls</dt><dd id="aiCalls">0</dd><dt>Cache hits</dt><dd id="cacheHits">0</dd><dt>Time</dt><dd id="processTime">0 ms</dd><dt>Rating agreement</dt><dd id="agreement">—</dd><dt>Empty skipped</dt><dd id="emptySkipped">0</dd><dt>Duplicates removed</dt><dd id="duplicatesRemoved">0</dd></dl>
         </article>
       </section>
 

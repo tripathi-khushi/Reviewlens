@@ -18,6 +18,31 @@ python server.py
 
 Open http://localhost:8000.
 
+## Using a Gemini API key
+
+The app works without an API key using a local heuristic fallback, so CSV analysis and the dashboard
+are available immediately. The fallback is not an LLM: it uses local keyword and sentiment rules,
+should not be treated as production-grade AI, and does not count as an AI call.
+
+For real Gemini analysis:
+
+1. Create a Google AI Studio account at https://aistudio.google.com/.
+2. Open **Get API key**, create a key, and copy it.
+3. In the project root, copy `.env.example` to `.env`.
+4. Set `GEMINI_API_KEY` in `.env`:
+
+   ```dotenv
+   GEMINI_API_KEY=your_real_key_here
+   GEMINI_MODEL=gemini-2.5-flash
+   PORT=8000
+   ```
+
+5. Restart the server because environment variables are loaded at startup.
+6. Open http://localhost:8000 and click **Analyze sample** or upload a CSV.
+
+Do not put the key in HTML or JavaScript. The browser only communicates with the local server,
+and the server makes Gemini requests. Never commit `.env`.
+
 No third-party package installation is required. The app includes the sample `reviews.csv`, and no API key is needed to try the deterministic demo analysis. Copy `.env.example` to `.env` and set `GEMINI_API_KEY` to use Gemini:
 
 ```dotenv

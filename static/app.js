@@ -44,6 +44,8 @@ function render(data) {
   $("cacheHits").textContent = data.stats.cache_hits;
   $("processTime").textContent = data.stats.processing_ms + " ms";
   $("agreement").textContent = s.agreement == null ? "—" : s.agreement + "%";
+  $("emptySkipped").textContent = data.cleaning.skipped_empty;
+  $("duplicatesRemoved").textContent = data.cleaning.duplicates_removed;
 
   $("complaints").innerHTML = data.complaints.map(item =>
     `<div class="insight"><span>${item.label}</span><span class="count">${item.count}</span></div>`
@@ -128,6 +130,29 @@ $("sampleButton").addEventListener("click", async () => {
   analyze(data.csv);
 });
 $("emptySampleButton").addEventListener("click", () => $("sampleButton").click());
+function showHero() {
+  $("dashboard").setAttribute("hidden", "");
+  $("emptyState").removeAttribute("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function showSection(target) {
+  if (!dashboardData) {
+    $("sampleButton").click();
+    return;
+  }
+  $("emptyState").setAttribute("hidden", "");
+  $("dashboard").removeAttribute("hidden");
+  requestAnimationFrame(() => {
+    const section = $(target);
+    if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+$("backHomeButton").addEventListener("click", showHero);
+$("homeNavButton").addEventListener("click", showHero);
+$("brandHomeButton").addEventListener("click", showHero);
+document.querySelectorAll(".section-nav").forEach(button =>
+  button.addEventListener("click", () => showSection(button.dataset.target))
+);
 ["productFilter", "sentimentFilter", "topicFilter"].forEach(id =>
   $(id).addEventListener("change", renderRows)
 );
