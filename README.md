@@ -32,6 +32,9 @@ Run tests:
 python -m unittest -v
 ```
 
+The suite covers CSV cleaning, schema validation, retry failures, prompt-injection resistance,
+and normalized cache hashing.
+
 ## Architecture
 
 The browser serves as a static dashboard. It reads an uploaded CSV and sends the CSV text to the Python HTTP backend. The backend performs CSV cleaning, hashes normalized review text, checks `cache.json`, batches uncached reviews into groups of five, and calls Gemini only from the server. Gemini results are validated before the dashboard receives them. Suggested replies are generated only when a user clicks `Generate reply`.
