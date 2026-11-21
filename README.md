@@ -20,6 +20,21 @@ Open http://localhost:8000.
 
 The **Analyze sample** button loads `sample.csv` from the repository.
 
+## Deploy on Vercel
+
+The repository includes `vercel.json` and a Python serverless entrypoint at `api/index.py`.
+
+1. Push the project to GitHub.
+2. Import the repository in Vercel.
+3. In Project Settings > Environment Variables, add:
+   - `GEMINI_API_KEY`
+   - `GEMINI_MODEL=gemini-3-flash-preview`
+4. Deploy.
+5. Do not upload `.env`; Vercel environment variables must be configured in the dashboard.
+
+The root path is routed to `static/index.html`, and `/api/sample`, `/api/analyze`, and
+`/api/reply` are routed to the Python serverless function.
+
 ## Using a Gemini API key
 
 The app requires a Gemini API key for real CSV analysis. It does not use local heuristic fallback
