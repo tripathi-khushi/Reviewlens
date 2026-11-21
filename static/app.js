@@ -41,7 +41,6 @@ function render(data) {
   $("negativeMetric").textContent = percent(s.negative, s.total);
   $("replyMetric").textContent = s.needs_reply;
   $("aiCalls").textContent = data.stats.ai_calls;
-  $("cacheHits").textContent = data.stats.cache_hits;
   $("processTime").textContent = data.stats.processing_ms + " ms";
   $("agreement").textContent = s.agreement == null ? "—" : s.agreement + "%";
   $("emptySkipped").textContent = data.cleaning.skipped_empty;

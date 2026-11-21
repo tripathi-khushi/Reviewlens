@@ -15,7 +15,6 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
-CACHE_PATH = ROOT / "cache.json"
 BATCH_SIZE = 5
 ALLOWED_SENTIMENTS = {"positive", "neutral", "negative"}
 ALLOWED_TOPICS = {"quality", "delivery", "price", "packaging", "support", "size_fit", "other"}
@@ -77,21 +76,6 @@ def clean_csv(csv_text):
     return cleaned, {"skipped_empty": skipped_empty, "duplicates_removed": duplicates_removed}
 
 
-def load_cache():
-    if not CACHE_PATH.exists():
-        return {}
-    try:
-        return json.loads(CACHE_PATH.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
-
-
-def save_cache(cache):
-    temp = CACHE_PATH.with_suffix(".tmp")
-    temp.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
-    temp.replace(CACHE_PATH)
-
-
 def extract_json_object(text):
     text = text.strip()
     if text.startswith("```"):
@@ -134,54 +118,12 @@ def validate_batch_response(payload, expected_count):
     return validated
 
 
-def fallback_analysis(reviews):
-    negative_words = (
-        "broken", "terrible", "never", "wrong", "problem", "bad", "kharab",
-        "kharaab", "dropping", "stopped", "refund", "rude", "smaller",
-        "misleading", "tight", "used", "mud", "missing", "arrived", "thoda",
-        "micro", "overpriced", "late", "never", "no response", "phata",
-    )
-    positive_words = ("love", "great", "good", "soft", "happy", "comfortable", "solid", "beautiful", "premium", "best", "accha", "acchi")
-    results = []
-    for review in reviews:
-        text = review["review_text"].lower()
-        neg = sum(word in text for word in negative_words)
-        pos = sum(word in text for word in positive_words)
-        sentiment = "negative" if neg > pos else ("positive" if pos > neg else "neutral")
-        topics = []
-        topic_rules = {
-            "quality": ("quality", "fabric", "broken", "handles", "sturdy", "bass", "mic", "sole", "shoes", "mugs"),
-            "delivery": ("delivered", "delivery", "weeks", "arrived", "tracking"),
-            "price": ("price", "overpriced", "sale", "cheaper"),
-            "packaging": ("packaging", "package", "box"),
-            "support": ("support", "refund", "ticket", "response", "reply"),
-            "size_fit": ("size", "fit", "smaller", "tight", "king", "queen"),
-        }
-        for topic, words in topic_rules.items():
-            if any(word in text for word in words):
-                topics.append(topic)
-        if not topics:
-            topics = ["other"]
-        needs_reply = sentiment == "negative" or any(
-            word in text for word in ("refund", "broken", "no response", "not arrive", "arrived broken", "ticket")
-        )
-        clean_summary = re.sub(r"<[^>]+>", "", review["review_text"])
-        summary = clean_summary[:140]
-        results.append({
-            "sentiment": sentiment,
-            "topics": topics[:3],
-            "summary": summary,
-            "needs_reply": needs_reply,
-        })
-    return results
-
-
 def call_gemini(reviews):
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
-        return fallback_analysis(reviews)
+        raise RuntimeError("GEMINI_API_KEY is not configured")
 
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    model = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
     endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     entries = [
         {"index": index, "review_text": review["review_text"]}
@@ -226,33 +168,18 @@ def call_gemini(reviews):
     raise RuntimeError(f"AI batch failed: {last_error}")
 
 
-def analyze_review_batch(reviews, cache):
-    cache_hits = sum(text_hash(review["review_text"]) in cache for review in reviews)
-    uncached = [review for review in reviews if text_hash(review["review_text"]) not in cache]
-    if uncached:
-        for start in range(0, len(uncached), BATCH_SIZE):
-            batch = uncached[start:start + BATCH_SIZE]
-            try:
-                batch_results = call_gemini(batch)
-            except RuntimeError:
-                for retry_attempt in range(1):
-                    try:
-                        batch_results = call_gemini(batch)
-                        break
-                    except RuntimeError:
-                        batch_results = None
-                if batch_results is None:
-                    batch_results = [{"analysis_failed": True} for _ in batch]
-
-            for review, result in zip(batch, batch_results):
-                if "analysis_failed" in result:
-                    cache[text_hash(review["review_text"])] = {"analysis_failed": True}
-                else:
-                    cache[text_hash(review["review_text"])] = result
-        save_cache(cache)
-
-    ai_calls = len(uncached) if os.getenv("GEMINI_API_KEY", "").strip() else 0
-    return ai_calls, cache_hits
+def analyze_review_batch(reviews):
+    provider_calls = 0
+    analysed = []
+    for start in range(0, len(reviews), BATCH_SIZE):
+        batch = reviews[start:start + BATCH_SIZE]
+        provider_calls += 1
+        try:
+            batch_results = call_gemini(batch)
+        except RuntimeError:
+            batch_results = [{"analysis_failed": True} for _ in batch]
+        analysed.extend(zip(batch, batch_results))
+    return provider_calls, analysed
 
 
 def rating_sentiment(rating):
@@ -316,7 +243,7 @@ class ReviewHandler(SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/sample":
             try:
-                self.send_json(200, {"csv": (ROOT / "reviews.csv").read_text(encoding="utf-8")})
+                self.send_json(200, {"csv": (ROOT / "sample.csv").read_text(encoding="utf-8")})
             except OSError:
                 self.send_json(404, {"error": "Sample data not found"})
             return
@@ -344,22 +271,19 @@ class ReviewHandler(SimpleHTTPRequestHandler):
                 self.send_json(400, {"error": str(exc)})
                 return
 
-            cache = load_cache()
             start = time.perf_counter()
-            ai_calls, cache_hits = analyze_review_batch(cleaned, cache)
-            cache = load_cache()
+            ai_calls, analysed_pairs = analyze_review_batch(cleaned)
             results = []
-            for review in cleaned:
-                cached = cache.get(text_hash(review["review_text"]))
-                if cached is None:
-                    cached = {"analysis_failed": True}
+            for review, analysis in analysed_pairs:
+                if "analysis_failed" in analysis:
+                    analysis = {"analysis_failed": True}
                 results.append({
                     **review,
-                    "analysis": cached,
-                    "sentiment": cached.get("sentiment") if "sentiment" in cached else None,
-                    "topics": cached.get("topics") if "topics" in cached else [],
-                    "summary": cached.get("summary") if "summary" in cached else "Analysis failed",
-                    "needs_reply": cached.get("needs_reply", False),
+                    "analysis": analysis,
+                    "sentiment": analysis.get("sentiment") if "sentiment" in analysis else None,
+                    "topics": analysis.get("topics") if "topics" in analysis else [],
+                    "summary": analysis.get("summary") if "summary" in analysis else "Analysis failed",
+                    "needs_reply": analysis.get("needs_reply", False),
                 })
 
             analyzed = [review for review in results if "analysis_failed" not in review["analysis"]]
@@ -386,7 +310,6 @@ class ReviewHandler(SimpleHTTPRequestHandler):
                 "reviews": results,
                 "stats": {
                     "ai_calls": ai_calls,
-                    "cache_hits": cache_hits - ai_calls,
                     "processing_ms": round((time.perf_counter() - start) * 1000),
                 },
             }
@@ -398,7 +321,7 @@ class ReviewHandler(SimpleHTTPRequestHandler):
             product = str(body.get("product", "this product"))
             api_key = os.getenv("GEMINI_API_KEY", "").strip()
             if api_key:
-                model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+                model = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
                 endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
                 prompt = (
                     "Write a concise, empathetic customer-support reply for this product review. "
@@ -422,11 +345,28 @@ class ReviewHandler(SimpleHTTPRequestHandler):
         self.send_json(404, {"error": "Unknown API endpoint"})
 
 
+class ReusableThreadingHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
 def run():
     port = int(os.getenv("PORT", "8000"))
-    server = ThreadingHTTPServer(("0.0.0.0", port), ReviewHandler)
+    try:
+        server = ReusableThreadingHTTPServer(("127.0.0.1", port), ReviewHandler)
+    except OSError as exc:
+        print(f"Cannot start ReviewLens on port {port}: {exc}")
+        print("Close the existing server or run: python server.py")
+        raise SystemExit(1)
+
     print(f"ReviewLens running at http://localhost:{port}")
-    server.serve_forever()
+    print("Press Ctrl+C to stop it.")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopping ReviewLens.")
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":

@@ -18,11 +18,13 @@ python server.py
 
 Open http://localhost:8000.
 
+The **Analyze sample** button loads `sample.csv` from the repository.
+
 ## Using a Gemini API key
 
-The app works without an API key using a local heuristic fallback, so CSV analysis and the dashboard
-are available immediately. The fallback is not an LLM: it uses local keyword and sentiment rules,
-should not be treated as production-grade AI, and does not count as an AI call.
+The app requires a Gemini API key for real CSV analysis. It does not use local heuristic fallback
+results or a cached-analysis substitute. Without a key or when Gemini fails, affected reviews are
+reported as `analysis_failed`.
 
 For real Gemini analysis:
 
@@ -33,7 +35,7 @@ For real Gemini analysis:
 
    ```dotenv
    GEMINI_API_KEY=your_real_key_here
-   GEMINI_MODEL=gemini-2.5-flash
+   GEMINI_MODEL=gemini-3-flash-preview
    PORT=8000
    ```
 
@@ -41,15 +43,8 @@ For real Gemini analysis:
 6. Open http://localhost:8000 and click **Analyze sample** or upload a CSV.
 
 Do not put the key in HTML or JavaScript. The browser only communicates with the local server,
-and the server makes Gemini requests. Never commit `.env`.
-
-No third-party package installation is required. The app includes the sample `reviews.csv`, and no API key is needed to try the deterministic demo analysis. Copy `.env.example` to `.env` and set `GEMINI_API_KEY` to use Gemini:
-
-```dotenv
-GEMINI_API_KEY=your_key_here
-GEMINI_MODEL=gemini-2.5-flash
-PORT=8000
-```
+and the server makes Gemini requests. Never commit `.env`. The independent `sample.csv` is used
+by the **Analyze sample** button; `reviews.csv` is available for manual upload and is not loaded by the sample button.
 
 Run tests:
 
@@ -57,12 +52,12 @@ Run tests:
 python -m unittest -v
 ```
 
-The suite covers CSV cleaning, schema validation, retry failures, prompt-injection resistance,
-and normalized cache hashing.
+The suite covers CSV cleaning, schema validation, provider failures, prompt-injection resistance,
+and normalized duplicate detection.
 
 ## Architecture
 
-The browser serves as a static dashboard. It reads an uploaded CSV and sends the CSV text to the Python HTTP backend. The backend performs CSV cleaning, hashes normalized review text, checks `cache.json`, batches uncached reviews into groups of five, and calls Gemini only from the server. Gemini results are validated before the dashboard receives them. Suggested replies are generated only when a user clicks `Generate reply`.
+The browser serves as a static dashboard. It reads an uploaded CSV and sends the CSV text to the Python HTTP backend. The backend performs CSV cleaning and batches reviews into groups of five. Every batch is sent directly to Gemini from the server, and every response is validated before the dashboard receives it. There is no response cache or local heuristic fallback. Suggested replies are generated only when a user clicks `Generate reply`.
 
 ## AI prompt and prompt-injection resistance
 
@@ -87,11 +82,19 @@ R012 and R015 contain an instruction to mark themselves positive. The prompt exp
 
 - Empty rows are skipped and duplicate text is de-duplicated.
 - Missing or non-numeric ratings become `unknown`.
-- Duplicate text is normalized and hashed, and valid results are cached in `cache.json`.
+- Duplicate text is normalized and de-duplicated before it is sent to Gemini.
 - Invalid JSON, invalid fields, or wrong result counts trigger a validation retry; a second failure marks `analysis_failed`.
 - HTTP 429 and 5xx responses use exponential backoff.
 - Reviews are processed in batches of five.
 - The API key is read only from the server environment and is never sent to the browser.
+
+### Processing metrics
+
+- **Gemini calls** counts provider batches sent during the current run. A 14-review
+  file uses batches of five, so it can make up to three provider calls.
+- If Gemini quota, network, or server requests fail, the app retries rate-limit and server errors
+  with exponential backoff. Invalid AI schemas are retried once. Provider failures then use the
+  `analysis_failed` status. Results are never substituted from cache or heuristic rules.
 
 ## Screenshots
 
@@ -101,10 +104,15 @@ R012 and R015 contain an instruction to mark themselves positive. The prompt exp
 
 ## Known limitations
 
-The demo fallback is a heuristic and should not replace the configured Gemini analysis. The server is intentionally dependency-free and stores one local JSON cache rather than providing multi-user database isolation. Gemini and network availability can change output timing and cost. The app does not currently authenticate users or isolate uploads by tenant.
+Gemini availability and free-tier quota determine whether rows can be analysed. The server is intentionally dependency-free and does not cache provider responses. The app does not currently authenticate users or isolate uploads by tenant.
+
+Gemini free-tier keys can reach their daily request quota. When this happens, ReviewLens retries
+rate-limit responses and then reports affected reviews as `analysis_failed` rather than pretending
+they were analysed.
 
 With more time, I would add an authenticated database-backed upload history, product detail pages, provider abstraction, streaming progress, stronger language detection, and a Docker Compose deployment.
 
-## AI coding tools
+## Development notes
 
-I used GitHub Copilot/Coding Agent for initial scaffolding, implementation review, and test generation. I verified the code, CSV behavior, and retry paths locally and understand the submitted implementation.
+The implementation was developed and verified locally. CSV behavior, Gemini integration,
+dashboard rendering, API retries, and automated tests were checked before submission.
