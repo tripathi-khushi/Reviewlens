@@ -353,7 +353,7 @@ class ReusableThreadingHTTPServer(ThreadingHTTPServer):
 def run():
     port = int(os.getenv("PORT", "8000"))
     try:
-        server = ReusableThreadingHTTPServer(("127.0.0.1", port), ReviewHandler)
+        server = ReusableThreadingHTTPServer(("0.0.0.0", port), ReviewHandler)
     except OSError as exc:
         print(f"Cannot start ReviewLens on port {port}: {exc}")
         print("Close the existing server or run: python server.py")
